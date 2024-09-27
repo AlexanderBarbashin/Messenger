@@ -1,1 +1,5 @@
 /.idea/
+*.log
+*.env
+/migrations/versions
+/static/images
