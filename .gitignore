@@ -1,5 +1,6 @@
 /.idea/
 *.log
-*.env
-/migrations/versions
-/static/images
+*.env*
+*.log.zip
+.coverage
+/images
