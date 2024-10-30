@@ -1,0 +1,12 @@
+fastapi==0.112.2
+uvicorn==0.30.6
+SQLAlchemy==2.0.34
+alembic==1.13.2
+asyncpg==0.29.0
+psycopg2==2.9.9
+python-multipart==0.0.9
+aiofiles==24.1.0
+loguru==0.7.2
+filetype==1.2.0
+gunicorn==23.0.0
+python-dotenv==1.0.1
