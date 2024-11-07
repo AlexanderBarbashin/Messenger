@@ -25,15 +25,19 @@ async def create_new_tweet(
         author_id=current_user_id,
     )
     session.add(tweet)
-    await session.flush()
-    medias_update_stmt = (
-        update(TweetMedia).
-        where(TweetMedia.id.in_(new_tweet.tweet_media_ids)).
-        values(tweet_id=tweet.id)
-    ).returning(TweetMedia)
-    medias_update_result = await session.execute(medias_update_stmt)
-    medias_update = medias_update_result.scalars().all()
-    if len(new_tweet.tweet_media_ids) == len(medias_update):
-        await session.commit()
-        return tweet
-    return None
+    if new_tweet.tweet_media_ids:
+        await session.flush()
+        medias_update_stmt = (
+            update(TweetMedia).
+            where(
+                TweetMedia.id.in_(new_tweet.tweet_media_ids),
+                TweetMedia.tweet_id.is_(None),
+            ).
+            values(tweet_id=tweet.id)
+        ).returning(TweetMedia.id)
+        medias_update_result = await session.execute(medias_update_stmt)
+        medias_update_ids = medias_update_result.scalars().all()
+        if len(new_tweet.tweet_media_ids) != len(medias_update_ids):
+            return None
+    await session.commit()
+    return tweet

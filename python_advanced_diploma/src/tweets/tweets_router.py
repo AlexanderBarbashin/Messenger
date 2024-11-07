@@ -6,14 +6,14 @@ from fastapi import APIRouter, Depends, Header, Response, status
 from fastapi.params import Path, Query
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 from starlette.responses import JSONResponse
 
 from python_advanced_diploma.src.config import logger
 from python_advanced_diploma.src.database import get_async_session
 from python_advanced_diploma.src.medias.medias_models import TweetMedia
 from python_advanced_diploma.src.medias.medias_router_utils import (
-    delete_all_tweet_medias,
+    delete_all_tweet_images,
 )
 from python_advanced_diploma.src.responses import (
     bad_request_error_response,
@@ -129,18 +129,22 @@ async def delete_tweet(
         ),
     )
     current_user_id = await get_user_id_by_api_key(api_key, session)
-    tweet_to_delete_query = (
-        select(Tweet).
-        options(selectinload(Tweet.tweet_medias).load_only(TweetMedia.image)).
-        filter_by(id=id, author_id=current_user_id)
+    tweet_medias_delete_result = await session.execute(
+        delete(TweetMedia).
+        filter(TweetMedia.tweet_id == id).
+        returning(TweetMedia.image),
     )
-    tweet_to_delete_query_result = await session.execute(tweet_to_delete_query)
-    tweet_to_delete = tweet_to_delete_query_result.scalars().one()
-    tweet_medias_to_delete = tweet_to_delete.tweet_medias
-    if tweet_medias_to_delete:
-        await delete_all_tweet_medias(tweet_medias_to_delete)
-    await session.delete(tweet_to_delete)
-    await session.commit()
+    deleted_tweet_media_images = tweet_medias_delete_result.scalars().all()
+    delete_tweet_stmt = (
+        delete(Tweet).
+        filter_by(id=id, author_id=current_user_id).
+        returning(Tweet.id)
+    )
+    delete_tweet_result = await session.execute(delete_tweet_stmt)
+    if delete_tweet_result.scalars().one():
+        await session.commit()
+        if deleted_tweet_media_images:
+            await delete_all_tweet_images(deleted_tweet_media_images)
     logger.info(
         "Tweet with ID: {id} was deleted by user with ID: ".format(
             id=id,
@@ -185,56 +189,46 @@ async def like_tweet(
         ),
     )
     current_user_id = await get_user_id_by_api_key(api_key, session)
-    tweet = await session.get(Tweet, id)
-    if tweet:
-        if tweet.author_id == current_user_id:
-            logger.warning(
-                "User with ID: {current_user_id}".format(
-                    current_user_id=current_user_id,
-                ) + "try to like own tweet with ID: {id}".format(
-                    id=id,
-                ),
-            )
-            return JSONResponse(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content={
-                    "result": False,
-                    "error_type": "ValueError",
-                    "error_message": "You can't like own tweet",
-                },
-            )
-        like = Like(
-            user_id=current_user_id,
-            tweet_id=id,
-        )
-        session.add(like)
-        await session.commit()
-        logger.info(
-            "Tweet with ID: {id} was liked by user with ID: ".format(
-                id=id,
-            ) + "{current_user_id}".format(
+    tweet_query = (
+        select(Tweet).
+        filter_by(id=id).
+        options(load_only(Tweet.author_id))
+    )
+    tweet_query_result = await session.execute(tweet_query)
+    tweet = tweet_query_result.scalars().one()
+    if tweet.author_id == current_user_id:
+        logger.warning(
+            "User with ID: {current_user_id}".format(
                 current_user_id=current_user_id,
+            ) + "try to like own tweet with ID: {id}".format(
+                id=id,
             ),
         )
         return JSONResponse(
-            status_code=status.HTTP_201_CREATED,
+            status_code=status.HTTP_400_BAD_REQUEST,
             content={
-                "result": True,
+                "result": False,
+                "error_type": "ValueError",
+                "error_message": "You can't like own tweet",
             },
         )
-    logger.error(
-        "User with ID: {current_user_id}".format(
-            current_user_id=current_user_id,
-        ) + "try to like non exists tweet with ID: {id}".format(
+    like = Like(
+        user_id=current_user_id,
+        tweet_id=id,
+    )
+    session.add(like)
+    await session.commit()
+    logger.info(
+        "Tweet with ID: {id} was liked by user with ID: ".format(
             id=id,
+        ) + "{current_user_id}".format(
+            current_user_id=current_user_id,
         ),
     )
     return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
+        status_code=status.HTTP_201_CREATED,
         content={
-            "result": False,
-            "error_type": "ValueError",
-            "error_message": "Tweet with ID: {id} not found".format(id=id),
+            "result": True,
         },
     )
 
@@ -343,7 +337,7 @@ async def get_tweets(
     if offset and limit:
         offset = (offset - 1) * limit
     query = (
-        select(Tweet).
+        select(Tweet).options(load_only(Tweet.content)).
         options(selectinload(Tweet.tweet_medias).load_only(TweetMedia.image)).
         options(selectinload(Tweet.author).load_only(User.name)).
         options(selectinload(Tweet.put_like_users).load_only(User.name)).

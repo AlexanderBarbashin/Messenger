@@ -1,11 +1,10 @@
 """Medias router utils file. Use to create util functions."""
 import asyncio
 from datetime import datetime
+from typing import Sequence
 
 import aiofiles
 from aiofiles.os import makedirs, remove
-
-from python_advanced_diploma.src.medias.medias_models import TweetMedia
 
 
 async def save_image_to_disk(
@@ -33,21 +32,20 @@ async def save_image_to_disk(
     return image_path
 
 
-async def delete_media(media_image: str) -> None:
+async def delete_image(tweet_image: str) -> None:
     """
-    Функция для удаления твит медиа.
+    Функция для удаления изображения твит медиа.
 
-    :param media_image: изображение
+    :param tweet_image: изображение
     """
-    await remove(media_image)
+    await remove(tweet_image)
 
 
-async def delete_all_tweet_medias(tweet_medias: list[TweetMedia]) -> None:
+async def delete_all_tweet_images(tweet_images: Sequence[str]) -> None:
     """
-    Функция для удаления всех твит медиа твита.
+    Функция для удаления всех изображений твит медиа твита.
 
-    :param tweet_medias: list[TweetMedia]
+    :param tweet_images: изображения твита
     """
-    tweet_images = [tweet_media.image for tweet_media in tweet_medias]
-    tasks = [delete_media(media_image) for media_image in tweet_images]
+    tasks = [delete_image(tweet_image) for tweet_image in tweet_images]
     await asyncio.gather(*tasks)

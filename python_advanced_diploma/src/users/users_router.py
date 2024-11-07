@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, Response, status
 from fastapi.params import Path
 from sqlalchemy import and_, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import load_only, selectinload
 from starlette.responses import JSONResponse
 
 from python_advanced_diploma.src.config import logger
@@ -180,7 +180,7 @@ async def get_own_profile_info(
         ) + " try to get own profile info",
     )
     query = (
-        select(User).
+        select(User).options(load_only(User.name)).
         filter_by(user_api_key=api_key).
         options(selectinload(User.followers).load_only(User.name)).
         options(selectinload(User.following).load_only(User.name))
@@ -223,7 +223,7 @@ async def get_profile_info(
         ),
     )
     query = (
-        select(User).
+        select(User).options(load_only(User.name)).
         filter_by(id=id).
         options(selectinload(User.followers).load_only(User.name)).
         options(selectinload(User.following).load_only(User.name))

@@ -4,22 +4,21 @@ import shutil
 
 import aiofiles
 
-from python_advanced_diploma.src.medias.medias_models import TweetMedia
 from python_advanced_diploma.src.medias.medias_router_utils import (
-    delete_all_tweet_medias,
+    delete_all_tweet_images,
     save_image_to_disk,
 )
 
 
-async def test_delete_all_tweet_medias(tweet_medias: list[TweetMedia]) -> None:
+async def test_delete_all_tweet_images(tweet_media_images: list[str]) -> None:
     """
-    Тест утилиты для удаления твит медиа.
+    Тест утилиты для удаления изображений твит медиа.
 
-    :param tweet_medias: Твит медиа
+    :param tweet_media_images: изображения твит медиа
     """
-    await delete_all_tweet_medias(tweet_medias)
-    for tweet_media_image in tweet_medias:
-        assert not os.path.isfile(tweet_media_image.image)
+    await delete_all_tweet_images(tweet_media_images)
+    for tweet_media_image in tweet_media_images:
+        assert not os.path.isfile(tweet_media_image)
 
 
 async def test_save_image_to_disk() -> None:
