@@ -1,6 +1,7 @@
 /.idea/
 *.log
-*.env*
+.env
+.env.prod
 *.log.zip
 .coverage
 /images
